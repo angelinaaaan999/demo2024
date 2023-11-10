@@ -11,5 +11,5 @@
 | HQ-SRV         |  ens192  |192.168.0.46|/25            |192.168.0.1 |
 | BR-SRV         |  ens192  |192.168.0.38|/27            |192.168.0.49|
 
-![image](https://github.com/angelinaaaan999/demo2024/assets/148867770/7876c101-40dc-4159-901c-55c9ebaf38f1)
+![image](https://github.com/angelinaaaan999/demo2024/assets/148867770/647bcb85-7c61-4500-a21a-363d20ffeb19)
 
