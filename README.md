@@ -92,3 +92,162 @@ show ip ospf neighbor
 # №1.3
 Настройте автоматическое распределение IP-адресов на роутере HQ-R.
 # Ход выполнения работы:
+Установка DHCP
+```
+apt-get install isc-dhcp-server
+```
+Вошёл в файл
+```
+nano /etc/default/isc-dhcp-server
+```
+Указал интерфейс который смотрит на HQ-SRV
+```
+INTERFACESv4="ens224"
+Ctrl + s - сохранил изменения
+Ctrl + x - вышел с файла
+```
+Далее следует настройка раздачи адресов, а для этого захожу в файл:
+```
+nano /etc/dhcp/dhcpd.conf
+```
+Прописываю конфиг
+```
+subnet 192.168.0.0 netmask 255.255.255.128 {
+range 192.168.0.10 192.168.0.125;
+option domain-name-servers 8.8.8.8, 8.8.4.4;
+option routers 192.168.0.1;
+}
+Ctrl + s - сохранил изменения
+Ctrl + x - вышел с файла
+```
+Применил настройку 
+```
+systemctl restart isc-dhcp-server.service
+```
+Проверить DHCP можно при помощи HQ-SRV, включив на нём DHCP.
+# №4
+Настройте локальные учётные записи на всех устройствах в соответствии с таблицей
+| Учётная запись | Пароль   | Примечание        |   
+| -----------    | -------- |------------       | 
+| admin          | toortoor | HQ-SRV, HQ-R      | 
+| branchadmin    | toortoor | BR-SRV, BR-R      | 
+| networkadmin   | toortoor | HQ-R, BR-R, BR-SRV|
+# Ход выполнения работы:
+Добавляю пользователя:
+```
+adduser <имя пользователя>
+usermod -aG root <имя пользователя>
+```
+Прописываю пароль и подтверждаю его. 
+
+Захожу в файл /etc/passwd и проверяю, что созданный пользователей появился в файле.
+
+Пример:
+```
+<имя пользовтеля>:x:0:501::/home/admin:/bin/bash
+```
+# №5
+Настройте туннель между маршрутизаторами HQ-R И BR-R.
+# Ход выполнения работы:
+Установка графического интерфейса nmtui:
+```
+apt install network-manager
+```
+Заходим в интерфейс:
+```
+nmtui
+```
+![image](https://github.com/Ganibal-24/demo2024/assets/148868527/aa3f89b4-258d-416d-b640-841dc113e882)
+
+Добавить IP tunnel
+
+![image](https://github.com/Ganibal-24/demo2024/assets/148868527/7119312a-f41a-46c5-bf1e-7d04fe7f29ac)
+
+![image](https://github.com/Ganibal-24/demo2024/assets/148868527/102808ba-b1f2-4e68-a05c-7b8afa776640)
+
+Для HQ-R:
+```
+nmcli connection modify HQ-R ip-tunnel.ttl 64
+ip r add 192.168.0.128/27 dev gre1
+```
+Для BR-R:
+```
+nmcli connection modify BR-R ip-tunnel.ttl 64
+ip r add 192.168.0.0/25 dev gre1
+```
+# №6
+Настройте NAT на всех маршрутизаторах 
+# Ход выполнения работы:
+Устанавливаем пакет:
+```
+apt-get -y install firewalld
+```
+Задаём автозагрузку:
+```
+systemctl enable --now firewalld
+```
+Прописываем интерфейс, который смотрит во внешнюю сеть:
+```
+firewall-cmd --permanent --zone=public --add-interface=ens192
+```
+Прописываем интерфейс, который смотрит во внутреннюю сеть:
+```
+firewall-cmd --permanent --zone=trusted --add-interface=ens224
+firewall-cmd --permanent --zone=trusted --add-interface=ens256
+```
+Включаем NAT:
+```
+firewall-cmd --permanent --zone=public --add-masquerade
+```
+Сохраняем правила:
+```
+firewall-cmd --reload
+```
+# №7
+Измерьте пропускную способность сети между двумя узлами HQ-R-ISP
+# Ход выполнения работы:
+Установка:
+```
+apt-get -y install iperf3 
+```
+Делаем ISP в роли сервера:
+```
+iperf3 -s
+```
+Если порт не открыт, то:
+```
+iptables -A INPUT -p tcp --dport 5201 -j ACCEPT
+```
+На HQ-R пишем:
+```
+iperf3 -c 192.168.0.162 -f M
+```
+# №8
+Составьте backup скрипты для сохранения конфигурации сетевых устройств, а именно HQ-R и BR-R. Продемонстрируйте их работу.
+# Ход выполнения работы:
+Создал каталог, где в будущем будет храниться конфигурация:
+```
+mkdir /etc/frr/backup
+```
+Установка службы:
+```
+apt-get install rsync
+```
+Вход в файл:
+```
+crontab -e
+```
+Вписываем скрипт:
+```
+0 0 * * * rsync /etc/frr/frr.conf /etc/frr/backup
+```
+Где 0 0 * * * это минута час день месяц день недели.
+
+В данном случае нам не нужны параметры дня, месяца и дня недели, поэтому мы прописываем только минуты и часы.
+
+/etc/frr/frr.conf это файл, который мы хотим сохранить, а /etc/frr/backup это наш каталог, в котором всё и будет храниться.
+
+Когда настанет время, которое вы указали, нужно будет зайти в каталог и убедиться, что скрипт сработал:
+```
+ls /etc/frr/backup
+```
